@@ -1,0 +1,351 @@
+
+<style>
+  body { margin: 0; }
+  .section { margin-bottom: 0; }
+  .category-card {
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    background: var(--color-background-secondary);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .category-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+  .category-header:hover { background: var(--color-background-tertiary); }
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .chevron {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--color-text-tertiary);
+    transition: transform 0.2s;
+  }
+  .category-body {
+    display: none;
+    padding: 0 14px 12px;
+    border-top: 0.5px solid var(--color-border-tertiary);
+  }
+  .category-body.open { display: block; }
+  .feature-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    font-size: 13px;
+    color: var(--color-text-primary);
+  }
+  .feature-row:last-child { border-bottom: none; }
+  .feature-name { font-weight: 500; min-width: 180px; flex-shrink: 0; }
+  .feature-desc { color: var(--color-text-secondary); line-height: 1.5; }
+  .badge {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 20px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .workflow-section {
+    margin-top: 16px;
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+  }
+  .workflow-title {
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    background: var(--color-background-secondary);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .workflow-title:hover { background: var(--color-background-tertiary); }
+  .workflow-body { display: none; padding: 12px 14px; border-top: 0.5px solid var(--color-border-tertiary); }
+  .workflow-body.open { display: block; }
+  .step {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-text { color: var(--color-text-secondary); line-height: 1.5; }
+  .step-text strong { color: var(--color-text-primary); font-weight: 500; }
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--color-border-tertiary);
+    padding-bottom: 0;
+  }
+  .tab {
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s;
+  }
+  .tab:hover { color: var(--color-text-primary); }
+  .tab.active { color: var(--color-text-primary); border-bottom-color: var(--color-text-primary); font-weight: 500; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  h2 { font-size: 15px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 12px; }
+</style>
+
+<div style="padding: 16px 0 8px;">
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('features', this)">Features</div>
+    <div class="tab" onclick="switchTab('workflows', this)">Business workflows</div>
+    <div class="tab" onclick="switchTab('roles', this)">Roles & permissions</div>
+  </div>
+
+  <!-- FEATURES TAB -->
+  <div class="tab-panel active" id="tab-features">
+
+    <div class="category-card">
+      <div class="category-header" onclick="toggleCard(this)">
+        <span class="dot" style="background:#534AB7"></span>
+        KPI definition &amp; library
+        <span class="chevron">▼</span>
+      </div>
+      <div class="category-body open">
+        <div class="feature-row"><span class="feature-name">KPI builder</span><span class="feature-desc">Create KPIs with name, description, unit (%, $, count, score), measurement frequency (daily/weekly/monthly/quarterly/yearly), and data source (manual, integrated, formula).</span></div>
+        <div class="feature-row"><span class="feature-name">Formula engine</span><span class="feature-desc">Define calculated KPIs using operands from other KPIs or metrics (e.g. Revenue Growth = (Current − Prior) / Prior × 100).</span></div>
+        <div class="feature-row"><span class="feature-name">KPI library / templates</span><span class="feature-desc">Pre-built library of common KPIs by department (Sales, HR, Finance, Operations). Users clone and customise.</span></div>
+        <div class="feature-row"><span class="feature-name">KPI versioning</span><span class="feature-desc">Track changes to KPI definitions over time. Preserve historical data under old definition when a KPI is redefined.</span></div>
+        <div class="feature-row"><span class="feature-name">Categorisation & tagging</span><span class="feature-desc">Organise KPIs by department, strategic pillar, owner, or custom tag. Supports multi-level hierarchy.</span></div>
+      </div>
+    </div>
+
+    <div class="category-card">
+      <div class="category-header" onclick="toggleCard(this)">
+        <span class="dot" style="background:#0F6E56"></span>
+        Target setting
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="category-body">
+        <div class="feature-row"><span class="feature-name">Target assignment</span><span class="feature-desc">Set targets per KPI at organisation, team, or individual level. Supports fixed values, ranges, and improvement baselines.</span></div>
+        <div class="feature-row"><span class="feature-name">Cascading targets</span><span class="feature-desc">Top-down cascade: break an org-level target into department and individual targets automatically or manually.</span></div>
+        <div class="feature-row"><span class="feature-name">Weightings</span><span class="feature-desc">Assign percentage weights to KPIs so a composite performance score can be calculated per employee or team.</span></div>
+        <div class="feature-row"><span class="feature-name">Milestones / checkpoints</span><span class="feature-desc">Define interim targets at set intervals (e.g. 25% by end of Q1) to track progress during the period.</span></div>
+        <div class="feature-row"><span class="feature-name">Stretch targets</span><span class="feature-desc">Optionally set a stretch target above the base target. Scores above 100% are possible and tracked.</span></div>
+      </div>
+    </div>
+
+    <div class="category-card">
+      <div class="category-header" onclick="toggleCard(this)">
+        <span class="dot" style="background:#993C1D"></span>
+        Data collection &amp; progress tracking
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="category-body">
+        <div class="feature-row"><span class="feature-name">Manual entry</span><span class="feature-desc">Employees or managers input actual values at the configured frequency. Supports bulk upload via CSV.</span></div>
+        <div class="feature-row"><span class="feature-name">Integration connectors</span><span class="feature-desc">Auto-sync from CRMs (Salesforce), HRIS, BI tools, spreadsheets (Google Sheets / Excel), or REST APIs via webhooks.</span></div>
+        <div class="feature-row"><span class="feature-name">Progress % calculation</span><span class="feature-desc">Automatically derive % achieved = (actual / target) × 100 and display vs the current milestone.</span></div>
+        <div class="feature-row"><span class="feature-name">Update history & audit log</span><span class="feature-desc">Every data point timestamped with source (manual/auto) and who submitted it. Full audit trail.</span></div>
+        <div class="feature-row"><span class="feature-name">Evidence attachments</span><span class="feature-desc">Upload supporting files or links alongside an actual value (e.g. screenshot of CRM report).</span></div>
+      </div>
+    </div>
+
+    <div class="category-card">
+      <div class="category-header" onclick="toggleCard(this)">
+        <span class="dot" style="background:#185FA5"></span>
+        Scoring &amp; rating
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="category-body">
+        <div class="feature-row"><span class="feature-name">Scoring scale config</span><span class="feature-desc">Admin defines rating scale: 1–5 stars, 1–10, letter grades, or custom. Map achievement % ranges to each rating.</span></div>
+        <div class="feature-row"><span class="feature-name">Composite score</span><span class="feature-desc">Weighted average across all KPIs produces an overall performance score for an employee or team.</span></div>
+        <div class="feature-row"><span class="feature-name">Normalisation</span><span class="feature-desc">Handle KPIs where lower is better (e.g. defect rate, cost). Invert scoring direction per KPI.</span></div>
+        <div class="feature-row"><span class="feature-name">Period-end lock</span><span class="feature-desc">At period close, scores are locked, preventing retroactive edits. Admin can unlock with reason.</span></div>
+      </div>
+    </div>
+
+    <div class="category-card">
+      <div class="category-header" onclick="toggleCard(this)">
+        <span class="dot" style="background:#3B6D11"></span>
+        Dashboards &amp; reporting
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="category-body">
+        <div class="feature-row"><span class="feature-name">Individual KPI dashboard</span><span class="feature-desc">Employee view: their KPIs, current actuals vs targets, progress bars, trend sparklines, overall score.</span></div>
+        <div class="feature-row"><span class="feature-name">Manager team view</span><span class="feature-desc">Side-by-side comparison of direct reports' KPI progress. Highlight at-risk employees.</span></div>
+        <div class="feature-row"><span class="feature-name">Org-level rollup</span><span class="feature-desc">Aggregate KPI performance across departments. Drill down from company → department → team → individual.</span></div>
+        <div class="feature-row"><span class="feature-name">Historical trend charts</span><span class="feature-desc">Line/bar charts across multiple periods. Benchmark current performance vs prior periods or peer groups.</span></div>
+        <div class="feature-row"><span class="feature-name">Heatmap / distribution</span><span class="feature-desc">Bell-curve or grid view of employee scores across the org. Useful for calibration.</span></div>
+        <div class="feature-row"><span class="feature-name">Export & scheduled reports</span><span class="feature-desc">Export to PDF/CSV/Excel. Schedule auto-delivery of reports to stakeholders via email.</span></div>
+      </div>
+    </div>
+
+    <div class="category-card">
+      <div class="category-header" onclick="toggleCard(this)">
+        <span class="dot" style="background:#854F0B"></span>
+        Alerts &amp; notifications
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="category-body">
+        <div class="feature-row"><span class="feature-name">At-risk alerts</span><span class="feature-desc">Notify manager + employee when a KPI falls below a configurable threshold (e.g. &lt;60% of target at mid-period).</span></div>
+        <div class="feature-row"><span class="feature-name">Update reminders</span><span class="feature-desc">Automatic nudge when a KPI data entry is overdue. Configurable per frequency (weekly, monthly).</span></div>
+        <div class="feature-row"><span class="feature-name">Target achieved / exceeded</span><span class="feature-desc">Positive notification when an employee hits 100% or a stretch target.</span></div>
+        <div class="feature-row"><span class="feature-name">Period-end reminders</span><span class="feature-desc">Remind managers to review and sign off on KPI actuals before the period closes.</span></div>
+      </div>
+    </div>
+
+    <div class="category-card">
+      <div class="category-header" onclick="toggleCard(this)">
+        <span class="dot" style="background:#993356"></span>
+        Administration &amp; settings
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="category-body">
+        <div class="feature-row"><span class="feature-name">Review cycle management</span><span class="feature-desc">Configure performance cycles (annual, semi-annual, quarterly). Assign KPIs to cycles. Open/close periods.</span></div>
+        <div class="feature-row"><span class="feature-name">Role-based access control</span><span class="feature-desc">HR admin, manager, employee, executive roles with granular permissions on create/view/edit/approve KPIs.</span></div>
+        <div class="feature-row"><span class="feature-name">Approval workflows</span><span class="feature-desc">Require manager or HR sign-off on KPI definitions, targets, or submitted actuals before they are final.</span></div>
+        <div class="feature-row"><span class="feature-name">Org hierarchy sync</span><span class="feature-desc">Import or sync org structure from HRIS. KPI visibility and cascade follows the reporting hierarchy.</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- WORKFLOWS TAB -->
+  <div class="tab-panel" id="tab-workflows">
+
+    <div class="workflow-section">
+      <div class="workflow-title" onclick="toggleWorkflow(this)">
+        1 · KPI creation &amp; approval
+        <span class="chevron">▼</span>
+      </div>
+      <div class="workflow-body open">
+        <div class="step"><span class="step-num" style="background:#EEEDFE;color:#3C3489">1</span><span class="step-text"><strong>HR admin or manager</strong> opens KPI builder, selects from template library or builds from scratch.</span></div>
+        <div class="step"><span class="step-num" style="background:#EEEDFE;color:#3C3489">2</span><span class="step-text">Sets unit, measurement frequency, data source (manual vs integrated), and scoring direction.</span></div>
+        <div class="step"><span class="step-num" style="background:#EEEDFE;color:#3C3489">3</span><span class="step-text">KPI is submitted for approval → HR admin reviews and activates, or returns with comments.</span></div>
+        <div class="step"><span class="step-num" style="background:#EEEDFE;color:#3C3489">4</span><span class="step-text">Active KPI becomes available in the library for assignment to employees or teams.</span></div>
+      </div>
+    </div>
+
+    <div class="workflow-section" style="margin-top:8px">
+      <div class="workflow-title" onclick="toggleWorkflow(this)">
+        2 · Target setting &amp; cascade
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="workflow-body">
+        <div class="step"><span class="step-num" style="background:#E1F5EE;color:#085041">1</span><span class="step-text"><strong>Leadership</strong> sets org-level targets for the review period.</span></div>
+        <div class="step"><span class="step-num" style="background:#E1F5EE;color:#085041">2</span><span class="step-text">System suggests department sub-targets (proportional split or custom). Dept heads adjust and confirm.</span></div>
+        <div class="step"><span class="step-num" style="background:#E1F5EE;color:#085041">3</span><span class="step-text">Managers assign KPIs + individual targets to each direct report. Set weightings per KPI.</span></div>
+        <div class="step"><span class="step-num" style="background:#E1F5EE;color:#085041">4</span><span class="step-text">Employee reviews their assigned KPIs and targets, acknowledges (optional e-signature).</span></div>
+        <div class="step"><span class="step-num" style="background:#E1F5EE;color:#085041">5</span><span class="step-text">Targets are locked — period begins.</span></div>
+      </div>
+    </div>
+
+    <div class="workflow-section" style="margin-top:8px">
+      <div class="workflow-title" onclick="toggleWorkflow(this)">
+        3 · In-period progress tracking
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="workflow-body">
+        <div class="step"><span class="step-num" style="background:#FAECE7;color:#712B13">1</span><span class="step-text"><strong>Employee or system</strong> submits actual value at each measurement interval (weekly/monthly).</span></div>
+        <div class="step"><span class="step-num" style="background:#FAECE7;color:#712B13">2</span><span class="step-text">System calculates % progress vs target and vs milestone. Updates dashboard in real time.</span></div>
+        <div class="step"><span class="step-num" style="background:#FAECE7;color:#712B13">3</span><span class="step-text">If below threshold → at-risk alert fires to manager and employee.</span></div>
+        <div class="step"><span class="step-num" style="background:#FAECE7;color:#712B13">4</span><span class="step-text">Manager can add coaching note or flag KPI for 1-on-1 discussion.</span></div>
+      </div>
+    </div>
+
+    <div class="workflow-section" style="margin-top:8px">
+      <div class="workflow-title" onclick="toggleWorkflow(this)">
+        4 · Period-end scoring &amp; calibration
+        <span class="chevron" style="transform:rotate(-90deg)">▼</span>
+      </div>
+      <div class="workflow-body">
+        <div class="step"><span class="step-num" style="background:#E6F1FB;color:#0C447C">1</span><span class="step-text">Period closes → system calculates final achievement % and weighted composite score per employee.</span></div>
+        <div class="step"><span class="step-num" style="background:#E6F1FB;color:#0C447C">2</span><span class="step-text"><strong>Manager</strong> reviews computed scores, optionally adds qualitative adjustment with justification.</span></div>
+        <div class="step"><span class="step-num" style="background:#E6F1FB;color:#0C447C">3</span><span class="step-text"><strong>HR runs calibration</strong> — view distribution heatmap, compare teams, normalise if needed.</span></div>
+        <div class="step"><span class="step-num" style="background:#E6F1FB;color:#0C447C">4</span><span class="step-text">Final scores approved and locked. Feed into compensation, promotion, or development planning modules.</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ROLES TAB -->
+  <div class="tab-panel" id="tab-roles">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--color-border-secondary)">
+          <th style="text-align:left;padding:8px 10px;font-weight:500;color:var(--color-text-secondary)">Role</th>
+          <th style="text-align:left;padding:8px 10px;font-weight:500;color:var(--color-text-secondary)">Can do</th>
+          <th style="text-align:left;padding:8px 10px;font-weight:500;color:var(--color-text-secondary)">Cannot do</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
+          <td style="padding:9px 10px;font-weight:500;color:var(--color-text-primary)">HR Admin</td>
+          <td style="padding:9px 10px;color:var(--color-text-secondary)">Create/edit/delete KPIs, manage library, configure cycles, unlock periods, run org reports, calibrate</td>
+          <td style="padding:9px 10px;color:var(--color-text-secondary)">—</td>
+        </tr>
+        <tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
+          <td style="padding:9px 10px;font-weight:500;color:var(--color-text-primary)">Executive</td>
+          <td style="padding:9px 10px;color:var(--color-text-secondary)">View org-level rollups, set top-level targets, approve calibration</td>
+          <td style="padding:9px 10px;color:var(--color-text-secondary)">Cannot edit individual KPI actuals</td>
+        </tr>
+        <tr style="border-bottom:0.5px solid var(--color-border-tertiary)">
+          <td style="padding:9px 10px;font-weight:500;color:var(--color-text-primary)">Manager</td>
+          <td style="padding:9px 10px;color:var(--color-text-secondary)">Assign KPIs to reports, set targets, view team progress, approve actuals, add coaching notes, adjust scores with justification</td>
+          <td style="padding:9px 10px;color:var(--color-text-secondary)">Cannot view peers' teams; cannot edit KPI definitions</td>
+        </tr>
+        <tr>
+          <td style="padding:9px 10px;font-weight:500;color:var(--color-text-primary)">Employee</td>
+          <td style="padding:9px 10px;color:var(--color-text-secondary)">View own KPIs and targets, submit actuals, add evidence, view own score</td>
+          <td style="padding:9px 10px;color:var(--color-text-secondary)">Cannot see peers' KPIs or scores; cannot change targets</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+function switchTab(id, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+}
+function toggleCard(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  const open = body.classList.toggle('open');
+  chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+function toggleWorkflow(title) {
+  const body = title.nextElementSibling;
+  const chevron = title.querySelector('.chevron');
+  const open = body.classList.toggle('open');
+  chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+</script>
