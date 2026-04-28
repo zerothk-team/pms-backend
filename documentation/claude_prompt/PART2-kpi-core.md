@@ -286,6 +286,23 @@ Use Python's `ast` module for safe parsing. Walk the AST to whitelist only `Num`
 
 ---
 
+### 3a. Formula Variables (Enhancement 2)
+
+The formula engine has been extended with named variables. Instead of referencing
+other KPI codes directly in formulas, you now define `KPIVariable` records that:
+1. Give each input a name (e.g. `REVENUE`, `EXPENSES`)
+2. Configure where the value comes from (manual / ERP API / database / IoT / webhook)
+3. Store every value with a full audit trail in `variable_actuals`
+
+See `app/integrations/` for the adapter system and `ARCHITECTURE.md` for the data flow diagram.
+
+Formula validation now checks:
+- Syntax (AST-safe, no eval)
+- Variable existence (all referenced names have a KPIVariable defined)
+- Circular dependencies (KPI_A → KPI_B → KPI_A is rejected)
+
+---
+
 ## 4. `app/kpis/schemas.py`
 
 ### Request Schemas

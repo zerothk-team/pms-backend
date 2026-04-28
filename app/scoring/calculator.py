@@ -1,8 +1,23 @@
 """
-scoring/calculator.py — Pure calculation functions with no side effects.
+scoring/calculator.py — Pure scoring calculation functions.
 
-All functions accept and return Python Decimal values for precision.
-No database access; no FastAPI dependencies — unit-testable in isolation.
+Design principles:
+  - No database calls — all inputs passed as arguments
+  - All functions are pure (same input always → same output)
+  - Decimal arithmetic throughout — never float for money/percentages
+  - Config-aware since Enhancement 1: resolve_scoring_config() handles 3-level precedence
+
+Key functions:
+  compute_achievement_percentage(actual, target, direction, minimum, cap) → Decimal
+  compute_weighted_score(achievement_pct, weight) → Decimal
+  compute_composite_score(scores) → Decimal
+  resolve_scoring_config(target, cycle_config) → dict   ← Enhancement 1
+  determine_rating_with_config(achievement_pct, config) → (RatingLabel, source_str)
+
+Usage from ScoringEngine:
+  config = resolve_scoring_config(target, cycle_config)
+  pct = compute_achievement_percentage(actual, target.target_value, kpi.scoring_direction)
+  rating, source = determine_rating_with_config(pct, config)
 """
 
 import statistics
@@ -14,10 +29,101 @@ from app.scoring.enums import RatingLabel
 
 if TYPE_CHECKING:
     from app.scoring.models import ScoreConfig
+    from app.scoring.kpi_scoring_model import KPIScoringConfig
+    from app.targets.models import KPITarget
 
 # Maximum allowed achievement percentage to prevent runaway stretch bonuses.
 _ACHIEVEMENT_CAP = Decimal("200.0000")
 _ZERO = Decimal("0.0000")
+
+
+# ---------------------------------------------------------------------------
+# Per-KPI config resolution & config-aware rating
+# ---------------------------------------------------------------------------
+
+
+def resolve_scoring_config(
+    target: "KPITarget",
+    cycle_config: "ScoreConfig",
+) -> dict:
+    """
+    Resolve the effective scoring thresholds for a KPITarget.
+
+    Precedence (highest to lowest):
+      1. target.scoring_config      (target-level override)
+      2. target.kpi.scoring_config  (KPI-level default)
+      3. cycle_config               (cycle-wide fallback)
+
+    Returns a dict with keys:
+      exceptional_min, exceeds_min, meets_min, partially_meets_min,
+      does_not_meet_min, achievement_cap, source
+    """
+    # Try target-level override first
+    if target.scoring_config_id and target.scoring_config:
+        cfg = target.scoring_config
+        return {
+            "exceptional_min":    float(cfg.exceptional_min),
+            "exceeds_min":        float(cfg.exceeds_min),
+            "meets_min":          float(cfg.meets_min),
+            "partially_meets_min": float(cfg.partially_meets_min),
+            "does_not_meet_min":  float(cfg.does_not_meet_min),
+            "achievement_cap":    float(cfg.achievement_cap),
+            "source":             f"target_override:{cfg.name}",
+        }
+
+    # Try KPI-level default
+    if target.kpi and target.kpi.scoring_config_id and target.kpi.scoring_config:
+        cfg = target.kpi.scoring_config
+        return {
+            "exceptional_min":    float(cfg.exceptional_min),
+            "exceeds_min":        float(cfg.exceeds_min),
+            "meets_min":          float(cfg.meets_min),
+            "partially_meets_min": float(cfg.partially_meets_min),
+            "does_not_meet_min":  float(cfg.does_not_meet_min),
+            "achievement_cap":    float(cfg.achievement_cap),
+            "source":             f"kpi_default:{cfg.name}",
+        }
+
+    # Fall back to cycle-level config
+    return {
+        "exceptional_min":    float(cycle_config.exceptional_min),
+        "exceeds_min":        float(cycle_config.exceeds_min),
+        "meets_min":          float(cycle_config.meets_min),
+        "partially_meets_min": float(cycle_config.partially_meets_min),
+        "does_not_meet_min":  0.0,
+        "achievement_cap":    200.0,
+        "source":             "cycle_default",
+    }
+
+
+def determine_rating_with_config(
+    achievement_pct: Decimal | None,
+    scoring_config: dict,
+) -> tuple[RatingLabel, str]:
+    """
+    Map an achievement percentage to a RatingLabel using a resolved config dict.
+
+    Args:
+        achievement_pct: Raw achievement percentage (before cap), or None.
+        scoring_config:  Result of resolve_scoring_config().
+
+    Returns:
+        (RatingLabel, source_description)
+    """
+    if achievement_pct is None:
+        return RatingLabel.NOT_RATED, scoring_config.get("source", "")
+
+    capped = min(float(achievement_pct), scoring_config["achievement_cap"])
+
+    if capped >= scoring_config["exceptional_min"]:
+        return RatingLabel.EXCEPTIONAL, scoring_config["source"]
+    if capped >= scoring_config["exceeds_min"]:
+        return RatingLabel.EXCEEDS_EXPECTATIONS, scoring_config["source"]
+    if capped >= scoring_config["meets_min"]:
+        return RatingLabel.MEETS_EXPECTATIONS, scoring_config["source"]
+    if capped >= scoring_config["partially_meets_min"]:
+        return RatingLabel.PARTIALLY_MEETS, scoring_config["source"]
+    return RatingLabel.DOES_NOT_MEET, scoring_config["source"]
 
 
 def compute_achievement_percentage(

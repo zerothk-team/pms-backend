@@ -35,6 +35,8 @@ from app.scoring.calculator import (
     compute_score_distribution,
     compute_weighted_score,
     determine_rating,
+    determine_rating_with_config,
+    resolve_scoring_config,
     validate_adjustment,
 )
 from app.scoring.enums import CalibrationStatus, RatingLabel, ScoreStatus
@@ -295,7 +297,10 @@ class ScoringEngine:
                 KPITarget.status == TargetStatus.LOCKED,
                 KPITarget.assignee_user_id.isnot(None),
             )
-            .options(selectinload(KPITarget.kpi))
+            .options(
+                selectinload(KPITarget.kpi).selectinload(KPI.scoring_config),
+                selectinload(KPITarget.scoring_config),
+            )
         )
         if user_ids:
             target_query = target_query.where(KPITarget.assignee_user_id.in_(user_ids))
@@ -341,6 +346,8 @@ class ScoringEngine:
 
                 # Step 3: Compute scores
                 if actual is not None:
+                    # Resolve effective scoring config (3-level precedence)
+                    effective_config = resolve_scoring_config(target, config)
                     achievement_pct = compute_achievement_percentage(
                         actual_value=actual.actual_value,
                         target_value=target.target_value,
@@ -349,7 +356,16 @@ class ScoringEngine:
                     )
                     kpis_with_actuals += 1
                 else:
-                    # No actual submitted → 0 % achievement
+                    # No actual submitted → 0 % achievement, use cycle default for config
+                    effective_config = {
+                        "exceptional_min":    float(config.exceptional_min),
+                        "exceeds_min":        float(config.exceeds_min),
+                        "meets_min":          float(config.meets_min),
+                        "partially_meets_min": float(config.partially_meets_min),
+                        "does_not_meet_min":  0.0,
+                        "achievement_cap":    200.0,
+                        "source":             "cycle_default",
+                    }
                     achievement_pct = Decimal("0.0000")
 
                 weighted = compute_weighted_score(achievement_pct, target.weight)
@@ -373,7 +389,12 @@ class ScoringEngine:
                     if perf_score.adjusted_score is not None
                     else achievement_pct
                 )
-                perf_score.rating = determine_rating(perf_score.final_score, config)
+                rating, rating_source = determine_rating_with_config(
+                    perf_score.final_score, effective_config
+                )
+                perf_score.rating = rating
+                perf_score.scoring_config_snapshot = effective_config
+                perf_score.rating_config_source = rating_source
                 if perf_score.status not in (
                     ScoreStatus.ADJUSTED,
                     ScoreStatus.CALIBRATED,

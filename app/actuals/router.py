@@ -303,3 +303,170 @@ async def delete_evidence(
     await _service.delete_evidence(
         db, evidence_id, _org_id(current_user), current_user
     )
+
+
+# ---------------------------------------------------------------------------
+# Variable actuals endpoints
+# ---------------------------------------------------------------------------
+
+from app.integrations.data_sync_service import DataSyncService
+from app.integrations.models import KPIVariable, VariableActual as _VarActual
+from app.integrations.schemas import (
+    BulkManualEntry,
+    BulkSyncResult,
+    ManualVariableEntry,
+    VariableActualRead,
+)
+
+_sync_service = DataSyncService()
+
+
+@router.post(
+    "/variables/",
+    response_model=list[VariableActualRead],
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit manual variable value(s)",
+    description="Store one or more manual variable values for a given period.",
+)
+async def submit_manual_variable_values(
+    payload: BulkManualEntry,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> list[VariableActualRead]:
+    from datetime import datetime, timezone
+    from sqlalchemy import select, update as sa_update
+    from app.exceptions import NotFoundException
+    from app.integrations.enums import VariableSourceType
+
+    org_id = _org_id(current_user)
+    results = []
+
+    for entry in payload.entries:
+        # Verify variable belongs to this org
+        var_result = await db.execute(
+            select(KPIVariable).where(
+                KPIVariable.id == entry.variable_id,
+                KPIVariable.kpi_id == entry.kpi_id,
+                KPIVariable.organisation_id == org_id,
+            )
+        )
+        variable = var_result.scalar_one_or_none()
+        if variable is None:
+            raise NotFoundException(f"KPI variable {entry.variable_id} not found")
+
+        # Supersede previous current value for this period
+        await db.execute(
+            sa_update(_VarActual)
+            .where(
+                _VarActual.variable_id == entry.variable_id,
+                _VarActual.period_date == entry.period_date,
+                _VarActual.is_current.is_(True),
+            )
+            .values(is_current=False)
+        )
+
+        actual = _VarActual(
+            variable_id=entry.variable_id,
+            kpi_id=entry.kpi_id,
+            period_date=entry.period_date,
+            raw_value=entry.raw_value,
+            source_type=VariableSourceType.MANUAL,
+            sync_metadata={"source_type": "manual", "synced_at": datetime.now(timezone.utc).isoformat()},
+            submitted_by_id=current_user.id,
+            is_current=True,
+        )
+        db.add(actual)
+        await db.flush()
+        await db.refresh(actual)
+        results.append(actual)
+
+    await db.commit()
+    return [VariableActualRead.model_validate(a) for a in results]
+
+
+@router.get(
+    "/variables/{kpi_id}/{period}",
+    response_model=list[VariableActualRead],
+    summary="Get all variable values for a KPI and period",
+    description="Returns all current variable actuals for a KPI for the given period (YYYY-MM-DD).",
+)
+async def get_variable_actuals_for_period(
+    kpi_id: UUID,
+    period: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> list[VariableActualRead]:
+    from datetime import date as _date
+    from sqlalchemy import select
+
+    try:
+        period_date = _date.fromisoformat(period)
+    except ValueError:
+        from app.exceptions import ValidationException
+        raise ValidationException(f"Invalid period format: {period!r}. Use YYYY-MM-DD.")
+
+    result = await db.execute(
+        select(_VarActual).where(
+            _VarActual.kpi_id == kpi_id,
+            _VarActual.period_date == period_date,
+            _VarActual.is_current.is_(True),
+        )
+    )
+    return [VariableActualRead.model_validate(a) for a in result.scalars().all()]
+
+
+@router.post(
+    "/variables/bulk-sync/{kpi_id}",
+    response_model=BulkSyncResult,
+    summary="Trigger auto-sync for all non-manual variables of a KPI",
+    description="Fetches fresh values from all external sources. Requires hr_admin.",
+)
+async def bulk_sync_variables(
+    kpi_id: UUID,
+    period_date: Annotated[str, Query(description="Period in YYYY-MM-DD format")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_roles("hr_admin"))],
+) -> BulkSyncResult:
+    from datetime import date as _date
+    from sqlalchemy import select
+    from app.integrations.enums import VariableSourceType as _VST
+
+    try:
+        parsed_date = _date.fromisoformat(period_date)
+    except ValueError:
+        from app.exceptions import ValidationException
+        raise ValidationException(f"Invalid period_date: {period_date!r}. Use YYYY-MM-DD.")
+
+    variables_result = await db.execute(
+        select(KPIVariable).where(KPIVariable.kpi_id == kpi_id)
+    )
+    all_variables = list(variables_result.scalars().all())
+
+    skip_types = {_VST.MANUAL, _VST.WEBHOOK_RECEIVE}
+    results: dict[str, str] = {}
+    synced = 0
+    failed = 0
+
+    for var in all_variables:
+        if var.source_type in skip_types:
+            results[var.variable_name] = "skipped"
+            continue
+        if not var.auto_sync_enabled:
+            results[var.variable_name] = "skipped (auto_sync disabled)"
+            continue
+        try:
+            await _sync_service.sync_variable(db, var, parsed_date)
+            results[var.variable_name] = "synced"
+            synced += 1
+        except Exception as exc:
+            results[var.variable_name] = f"failed: {exc}"
+            failed += 1
+
+    return BulkSyncResult(
+        kpi_id=kpi_id,
+        period_date=parsed_date,
+        synced_count=synced,
+        failed_count=failed,
+        results=results,
+    )
+

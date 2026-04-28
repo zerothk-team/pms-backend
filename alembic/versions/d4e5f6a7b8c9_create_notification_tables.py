@@ -78,7 +78,7 @@ def upgrade() -> None:
         sa.Column("organisation_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column(
             "notification_type",
-            sa.Enum(
+            postgresql.ENUM(
                 "kpi_at_risk", "team_kpi_at_risk", "actual_entry_due",
                 "target_acknowledgement_due", "period_closing_soon",
                 "approval_pending", "target_achieved", "stretch_target_achieved",
@@ -91,13 +91,13 @@ def upgrade() -> None:
         ),
         sa.Column(
             "channel",
-            sa.Enum("in_app", "email", name="notificationchannel", create_type=False),
+            postgresql.ENUM("in_app", "email", name="notificationchannel", create_type=False),
             nullable=False,
             server_default="in_app",
         ),
         sa.Column(
             "status",
-            sa.Enum("unread", "read", "dismissed", name="notificationstatus", create_type=False),
+            postgresql.ENUM("unread", "read", "dismissed", name="notificationstatus", create_type=False),
             nullable=False,
             server_default="unread",
         ),

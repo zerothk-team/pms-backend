@@ -17,6 +17,10 @@ import app.kpis.models  # noqa: F401
 import app.review_cycles.models  # noqa: F401
 import app.targets.models  # noqa: F401
 import app.actuals.models  # noqa: F401
+import app.scoring.models  # noqa: F401
+import app.scoring.kpi_scoring_model  # noqa: F401
+import app.notifications.models  # noqa: F401
+import app.integrations.models  # noqa: F401
 
 config = context.config
 

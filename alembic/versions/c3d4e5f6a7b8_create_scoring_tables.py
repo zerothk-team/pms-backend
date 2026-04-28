@@ -33,37 +33,30 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # --- Enum types ---------------------------------------------------------
-    ratinglabel = postgresql.ENUM(
-        "exceptional",
-        "exceeds_expectations",
-        "meets_expectations",
-        "partially_meets",
-        "does_not_meet",
-        "not_rated",
-        name="ratinglabel",
-    )
-    ratinglabel.create(op.get_bind(), checkfirst=True)
+    conn = op.get_bind()
 
-    scorestatus = postgresql.ENUM(
-        "computed",
-        "manager_reviewed",
-        "adjusted",
-        "calibrated",
-        "final",
-        "appealed",
-        name="scorestatus",
-    )
-    scorestatus.create(op.get_bind(), checkfirst=True)
+    # --- Enum types (idempotent via pg_type check) ----------------------------
+    def _create_enum_if_missing(name: str, values: list[str]) -> None:
+        exists = conn.execute(
+            sa.text("SELECT 1 FROM pg_type WHERE typname = :n"), {"n": name}
+        ).first()
+        if not exists:
+            quoted = ", ".join(f"'{v}'" for v in values)
+            conn.execute(sa.text(f"CREATE TYPE {name} AS ENUM ({quoted})"))
 
-    calibrationstatus = postgresql.ENUM(
-        "open",
-        "in_progress",
-        "completed",
-        "locked",
-        name="calibrationstatus",
+    _create_enum_if_missing(
+        "ratinglabel",
+        ["exceptional", "exceeds_expectations", "meets_expectations",
+         "partially_meets", "does_not_meet", "not_rated"],
     )
-    calibrationstatus.create(op.get_bind(), checkfirst=True)
+    _create_enum_if_missing(
+        "scorestatus",
+        ["computed", "manager_reviewed", "adjusted", "calibrated", "final", "appealed"],
+    )
+    _create_enum_if_missing(
+        "calibrationstatus",
+        ["open", "in_progress", "completed", "locked"],
+    )
 
     # --- score_configs -------------------------------------------------------
     op.create_table(
@@ -102,7 +95,7 @@ def upgrade() -> None:
         sa.Column("final_score", sa.Numeric(precision=8, scale=4), nullable=False, server_default="0.0000"),
         sa.Column(
             "rating",
-            sa.Enum(
+            postgresql.ENUM(
                 "exceptional", "exceeds_expectations", "meets_expectations",
                 "partially_meets", "does_not_meet", "not_rated",
                 name="ratinglabel",
@@ -113,7 +106,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "status",
-            sa.Enum(
+            postgresql.ENUM(
                 "computed", "manager_reviewed", "adjusted", "calibrated",
                 "final", "appealed",
                 name="scorestatus",
@@ -146,7 +139,7 @@ def upgrade() -> None:
         sa.Column("final_weighted_average", sa.Numeric(precision=8, scale=4), nullable=False, server_default="0.0000"),
         sa.Column(
             "rating",
-            sa.Enum(
+            postgresql.ENUM(
                 "exceptional", "exceeds_expectations", "meets_expectations",
                 "partially_meets", "does_not_meet", "not_rated",
                 name="ratinglabel",
@@ -159,7 +152,7 @@ def upgrade() -> None:
         sa.Column("kpis_with_actuals", sa.Integer(), nullable=False, server_default="0"),
         sa.Column(
             "status",
-            sa.Enum(
+            postgresql.ENUM(
                 "computed", "manager_reviewed", "adjusted", "calibrated",
                 "final", "appealed",
                 name="scorestatus",
@@ -210,7 +203,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column(
             "status",
-            sa.Enum(
+            postgresql.ENUM(
                 "open", "in_progress", "completed", "locked",
                 name="calibrationstatus",
                 create_type=False,

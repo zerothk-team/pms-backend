@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -227,6 +228,18 @@ class PerformanceScore(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
+    )
+
+    # Audit trail: snapshot of the effective scoring config used at compute time
+    scoring_config_snapshot: Mapped[Optional[dict]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="Snapshot of the effective scoring config at time of computation.",
+    )
+    rating_config_source: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Which config level was used: 'target_override:X', 'kpi_default:X', or 'cycle_default'",
     )
 
     # Relationships

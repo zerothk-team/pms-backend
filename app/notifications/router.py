@@ -91,8 +91,13 @@ async def get_unread_count(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> UnreadCountResponse:
-    svc = _get_notification_service()
-    count = await svc.get_unread_count(db, current_user.id)
+    try:
+        svc = _get_notification_service()
+        count = await svc.get_unread_count(db, current_user.id)
+    except RuntimeError:
+        # Redis not available — return 0 rather than crashing with a 500 that
+        # strips CORS headers (ServerErrorMiddleware is outer of CORSMiddleware).
+        count = 0
     return UnreadCountResponse(unread=count)
 
 

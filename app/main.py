@@ -10,6 +10,7 @@ from app.auth.router import router as auth_router
 from app.config import settings
 from app.dashboards.router import router as dashboards_router
 from app.scoring.router import router as scoring_router
+from app.scoring.kpi_scoring_router import router as kpi_scoring_router
 from app.exceptions import (
     BadRequestException,
     ConflictException,
@@ -33,6 +34,7 @@ from app.review_cycles.router import router as review_cycles_router
 from app.targets.router import router as targets_router
 from app.tasks.router import router as tasks_router
 from app.users.router import router as users_router
+from app.integrations.router import router as integrations_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,10 +53,16 @@ async def lifespan(app: FastAPI):
     global _redis
     _redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
 
+    # Register pluggable data adapters
+    from app.integrations.adapter_registry import register_builtin_adapters
+    register_builtin_adapters()
+
     if settings.DEBUG:
         from app.database import AsyncSessionLocal
         async with AsyncSessionLocal() as db:
             await seed_kpi_templates(db)
+            from app.scoring.kpi_scoring_service import KPIScoringConfigService
+            await KPIScoringConfigService().seed_system_presets(db)
 
     # Start background scheduler (disabled in test/debug to avoid noise)
     if not settings.DEBUG:
@@ -108,9 +116,11 @@ app.include_router(review_cycles_router, prefix=settings.API_V1_PREFIX)
 app.include_router(targets_router, prefix=settings.API_V1_PREFIX)
 app.include_router(actuals_router, prefix=settings.API_V1_PREFIX)
 app.include_router(scoring_router, prefix=settings.API_V1_PREFIX)
+app.include_router(kpi_scoring_router, prefix=settings.API_V1_PREFIX)
 app.include_router(dashboards_router, prefix=settings.API_V1_PREFIX)
 app.include_router(notifications_router, prefix=settings.API_V1_PREFIX)
 app.include_router(tasks_router, prefix=settings.API_V1_PREFIX)
+app.include_router(integrations_router, prefix=settings.API_V1_PREFIX)
 
 
 # --- Health check ---

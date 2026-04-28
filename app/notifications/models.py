@@ -14,6 +14,7 @@ from sqlalchemy import (
     JSON,
     String,
     Text,
+    desc,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -39,7 +40,7 @@ class Notification(Base):
 
     __table_args__ = (
         Index("ix_notif_recipient_status", "recipient_id", "status"),
-        Index("ix_notif_recipient_created", "recipient_id", "created_at"),
+        Index("ix_notif_recipient_created", "recipient_id", desc("created_at")),
         Index("ix_notif_organisation", "organisation_id"),
     )
 

@@ -78,6 +78,14 @@ class KPITarget(Base):
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Target-level scoring config override — highest precedence
+    scoring_config_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("kpi_scoring_configs.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Target-level override. Highest precedence. Falls back to KPI's config, then cycle config.",
+    )
+
     set_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
@@ -107,6 +115,9 @@ class KPITarget(Base):
     # Relationships
     kpi: Mapped["KPI"] = relationship(  # type: ignore[name-defined]
         "KPI", foreign_keys=[kpi_id]
+    )
+    scoring_config: Mapped[Optional["KPIScoringConfig"]] = relationship(  # type: ignore[name-defined]
+        "KPIScoringConfig", foreign_keys=[scoring_config_id]
     )
     review_cycle: Mapped["ReviewCycle"] = relationship(  # type: ignore[name-defined]
         "ReviewCycle", back_populates="targets"

@@ -1,6 +1,19 @@
 from enum import Enum
 
 
+class ScoringPreset(str, Enum):
+    """
+    Named presets for common scoring patterns.
+    Makes UI simpler — user picks a preset or chooses Custom.
+    """
+    STANDARD = "standard"   # 120/100/80/60/0  — default
+    STRICT   = "strict"     # 130/110/95/80/0  — compliance, safety
+    LENIENT  = "lenient"    # 110/90/70/50/0   — innovation, R&D
+    BINARY   = "binary"     # 100/100/90/0/0   — pass/fail KPIs
+    SALES    = "sales"      # 120/100/85/70/0  — typical sales org
+    CUSTOM   = "custom"     # fully user-defined thresholds
+
+
 class ScoreStatus(str, Enum):
     COMPUTED = "computed"                   # auto-calculated, not yet reviewed
     MANAGER_REVIEWED = "manager_reviewed"  # manager has seen/acknowledged it

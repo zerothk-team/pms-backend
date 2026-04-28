@@ -527,6 +527,32 @@ export interface CompositeScore {
 
 ---
 
+### 3.5 New Types (Enhancements 1 & 2)
+
+**`src/types/scoring-config.types.ts`** — KPIScoringConfig, ScoringPreset, EffectiveScoringConfig
+
+**`src/types/integration.types.ts`** — KPIVariable, VariableWithCurrentValue, VariableSourceType,
+VariableDataType, SyncStatus, AdapterInfo, AdapterSchema, FormulaValidationResponse
+
+### New RTK Query Endpoints
+
+- `scoringConfigEndpoints.ts` — CRUD for scoring configs, live preview
+- `integrationEndpoints.ts` — variable CRUD, validate-formula, adapter list/test, bulk sync, webhook push
+  - `useListKPIVariablesQuery`, `useCreateKPIVariableMutation`, `useDeleteKPIVariableMutation`
+  - `useValidateFormulaExpressionMutation`, `useTestVariableSyncMutation`
+  - `useListAdaptersQuery`, `useTestAdapterConfigMutation`
+  - `useGetVariableActualsForPeriodQuery`, `useSubmitManualVariableValuesMutation`, `useBulkSyncVariablesMutation`
+
+### New Components
+
+- `ScoringConfigManager.tsx` — list/create/edit scoring configs + live preview slider
+- `KPIVariableManager.tsx` — manage variables per KPI + formula validation panel with live preview
+- `AdapterConfigForm.tsx` — dynamic form rendered from adapter JSON schema
+- Updated `ActualEntryPage.tsx` — shows variable inputs + formula result preview for formula KPIs
+- Updated `KPIDetailDrawer.tsx` — "Variables" tab added for formula KPIs
+
+---
+
 ## 4. Mock Data — `src/mocks/`
 
 ### 4.1 `kpis.json` — generate 12 realistic KPI objects covering 4 departments:

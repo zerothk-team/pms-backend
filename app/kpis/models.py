@@ -175,6 +175,14 @@ class KPI(Base):
         nullable=False,
     )
 
+    # Optional per-KPI scoring config (overrides cycle-level config)
+    scoring_config_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("kpi_scoring_configs.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Default scoring config for this KPI. Overridden by target-level config.",
+    )
+
     # Relationships
     category: Mapped[Optional["KPICategory"]] = relationship("KPICategory", back_populates="kpis")
     tags: Mapped[list["KPITag"]] = relationship(
@@ -182,6 +190,9 @@ class KPI(Base):
     )
     organisation: Mapped["Organisation"] = relationship(  # type: ignore[name-defined]
         "Organisation", foreign_keys=[organisation_id]
+    )
+    scoring_config: Mapped[Optional["KPIScoringConfig"]] = relationship(  # type: ignore[name-defined]
+        "KPIScoringConfig", foreign_keys=[scoring_config_id]
     )
     created_by: Mapped["User"] = relationship(  # type: ignore[name-defined]
         "User", foreign_keys=[created_by_id]
@@ -194,6 +205,12 @@ class KPI(Base):
         secondary=kpi_formula_dependency,
         primaryjoin="KPI.id == kpi_formula_dependency.c.parent_kpi_id",
         secondaryjoin="KPI.id == kpi_formula_dependency.c.dependency_kpi_id",
+    )
+    variables: Mapped[list["KPIVariable"]] = relationship(  # type: ignore[name-defined]
+        "KPIVariable",
+        back_populates="kpi",
+        order_by="KPIVariable.display_order",
+        cascade="all, delete-orphan",
     )
     history: Mapped[list["KPIHistory"]] = relationship(
         "KPIHistory", back_populates="kpi", order_by="KPIHistory.version"

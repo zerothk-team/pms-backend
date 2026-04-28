@@ -585,12 +585,11 @@ class KPIService:
         errors: list[str] = []
         referenced_codes: list[str] = []
 
-        try:
-            parser.validate_syntax(expression)
-            referenced_codes = parser.extract_kpi_references(expression)
-        except FormulaValidationError as exc:
-            errors.append(exc.detail)
+        syntax_errors = parser.validate_syntax(expression)
+        if syntax_errors:
+            errors.extend(syntax_errors)
             return FormulaValidationResponse(valid=False, referenced_codes=[], errors=errors)
+        referenced_codes = parser.extract_kpi_references(expression)
 
         # Verify all referenced codes exist in org
         for code in referenced_codes:
@@ -644,10 +643,9 @@ class KPIService:
         Returns the list of dependency KPI objects.
         """
         parser = FormulaParser()
-        try:
-            parser.validate_syntax(expression)
-        except FormulaValidationError:
-            raise
+        syntax_errors = parser.validate_syntax(expression)
+        if syntax_errors:
+            raise FormulaValidationError(";".join(syntax_errors))
 
         referenced_codes = parser.extract_kpi_references(expression)
         dep_kpis: list[KPI] = []

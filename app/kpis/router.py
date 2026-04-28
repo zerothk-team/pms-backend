@@ -342,3 +342,276 @@ async def promote_to_template(
     """Promote a KPI to an organisation template."""
     kpi = await _service.promote_to_template(db, kpi_id, _org_id(current_user))
     return KPIRead.model_validate(kpi)
+
+
+# ---------------------------------------------------------------------------
+# KPI Variable management endpoints
+# ---------------------------------------------------------------------------
+
+from app.integrations.data_sync_service import DataSyncService
+from app.integrations.models import KPIVariable
+from app.integrations.schemas import (
+    FormulaValidationRequest as IntegFormulaValidationRequest,
+    FormulaValidationResponse as IntegFormulaValidationResponse,
+    KPIVariableCreate,
+    KPIVariableRead,
+    KPIVariableReorder,
+    KPIVariableUpdate,
+    VariableActualRead,
+)
+
+_sync_service = DataSyncService()
+
+
+@router.get(
+    "/{kpi_id}/variables/",
+    response_model=list[KPIVariableRead],
+    summary="List variables for a KPI",
+    description="Returns all KPIVariable definitions for the given KPI.",
+)
+async def list_kpi_variables(
+    kpi_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> list[KPIVariableRead]:
+    from sqlalchemy import select
+    from app.integrations.models import KPIVariable as _KPIVar
+    result = await db.execute(
+        select(_KPIVar)
+        .where(_KPIVar.kpi_id == kpi_id, _KPIVar.organisation_id == _org_id(current_user))
+        .order_by(_KPIVar.display_order)
+    )
+    return [KPIVariableRead.model_validate(v) for v in result.scalars().all()]
+
+
+@router.post(
+    "/{kpi_id}/variables/",
+    response_model=KPIVariableRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a KPI variable",
+    description="Adds a new named variable to a formula KPI. Requires hr_admin or manager.",
+)
+async def create_kpi_variable(
+    kpi_id: UUID,
+    payload: KPIVariableCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_roles("hr_admin", "manager"))],
+) -> KPIVariableRead:
+    from sqlalchemy import select
+    from app.exceptions import ConflictException, NotFoundException
+    from app.kpis.models import KPI
+    from app.integrations.models import KPIVariable as _KPIVar
+
+    kpi_result = await db.execute(
+        select(KPI).where(KPI.id == kpi_id, KPI.organisation_id == _org_id(current_user))
+    )
+    kpi = kpi_result.scalar_one_or_none()
+    if kpi is None:
+        raise NotFoundException("KPI not found")
+
+    # Check name uniqueness
+    existing = await db.execute(
+        select(_KPIVar).where(_KPIVar.kpi_id == kpi_id, _KPIVar.variable_name == payload.variable_name)
+    )
+    if existing.scalar_one_or_none():
+        raise ConflictException(
+            f"Variable '{payload.variable_name}' already exists for this KPI"
+        )
+
+    # Validate adapter config if non-manual
+    if payload.source_config and payload.source_type.value not in ("manual", "webhook_receive", "formula"):
+        from app.integrations.adapter_registry import AdapterRegistry
+        try:
+            adapter = AdapterRegistry.get(payload.source_config.get("adapter", payload.source_type.value))
+            errors = adapter.validate_config(payload.source_config)
+            if errors:
+                from app.exceptions import ValidationException
+                raise ValidationException("; ".join(errors))
+        except KeyError:
+            pass  # unknown adapter name — will fail at sync time
+
+    variable = _KPIVar(
+        kpi_id=kpi_id,
+        organisation_id=_org_id(current_user),
+        created_by_id=current_user.id,
+        **payload.model_dump(),
+    )
+    db.add(variable)
+    await db.flush()
+    await db.refresh(variable)
+    await db.commit()
+    return KPIVariableRead.model_validate(variable)
+
+
+@router.get(
+    "/{kpi_id}/variables/{var_id}",
+    response_model=KPIVariableRead,
+    summary="Get a KPI variable",
+)
+async def get_kpi_variable(
+    kpi_id: UUID,
+    var_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> KPIVariableRead:
+    from sqlalchemy import select
+    from app.exceptions import NotFoundException
+    from app.integrations.models import KPIVariable as _KPIVar
+
+    result = await db.execute(
+        select(_KPIVar).where(
+            _KPIVar.id == var_id,
+            _KPIVar.kpi_id == kpi_id,
+            _KPIVar.organisation_id == _org_id(current_user),
+        )
+    )
+    variable = result.scalar_one_or_none()
+    if variable is None:
+        raise NotFoundException("KPI variable not found")
+    return KPIVariableRead.model_validate(variable)
+
+
+@router.put(
+    "/{kpi_id}/variables/{var_id}",
+    response_model=KPIVariableRead,
+    summary="Update a KPI variable",
+    description="Update variable configuration. Requires hr_admin or manager.",
+)
+async def update_kpi_variable(
+    kpi_id: UUID,
+    var_id: UUID,
+    payload: KPIVariableUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_roles("hr_admin", "manager"))],
+) -> KPIVariableRead:
+    from sqlalchemy import select
+    from app.exceptions import NotFoundException
+    from app.integrations.models import KPIVariable as _KPIVar
+
+    result = await db.execute(
+        select(_KPIVar).where(
+            _KPIVar.id == var_id,
+            _KPIVar.kpi_id == kpi_id,
+            _KPIVar.organisation_id == _org_id(current_user),
+        )
+    )
+    variable = result.scalar_one_or_none()
+    if variable is None:
+        raise NotFoundException("KPI variable not found")
+
+    for field, value in payload.model_dump(exclude_none=True).items():
+        setattr(variable, field, value)
+
+    await db.flush()
+    await db.refresh(variable)
+    await db.commit()
+    return KPIVariableRead.model_validate(variable)
+
+
+@router.delete(
+    "/{kpi_id}/variables/{var_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a KPI variable",
+    description="Delete a variable definition. Requires hr_admin.",
+)
+async def delete_kpi_variable(
+    kpi_id: UUID,
+    var_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_roles("hr_admin"))],
+) -> None:
+    from sqlalchemy import select
+    from app.exceptions import NotFoundException
+    from app.integrations.models import KPIVariable as _KPIVar
+
+    result = await db.execute(
+        select(_KPIVar).where(
+            _KPIVar.id == var_id,
+            _KPIVar.kpi_id == kpi_id,
+            _KPIVar.organisation_id == _org_id(current_user),
+        )
+    )
+    variable = result.scalar_one_or_none()
+    if variable is None:
+        raise NotFoundException("KPI variable not found")
+
+    await db.delete(variable)
+    await db.commit()
+
+
+@router.patch(
+    "/{kpi_id}/variables/reorder",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Reorder KPI variables",
+    description="Update display_order for all variables of a KPI. Requires hr_admin or manager.",
+)
+async def reorder_kpi_variables(
+    kpi_id: UUID,
+    payload: KPIVariableReorder,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_roles("hr_admin", "manager"))],
+) -> None:
+    from sqlalchemy import select, update as sa_update
+    from app.integrations.models import KPIVariable as _KPIVar
+
+    for item in payload.variable_orders:
+        var_id = item.get("id")
+        new_order = item.get("order", 0)
+        await db.execute(
+            sa_update(_KPIVar)
+            .where(_KPIVar.id == var_id, _KPIVar.kpi_id == kpi_id)
+            .values(display_order=new_order)
+        )
+    await db.commit()
+
+
+@router.post(
+    "/{kpi_id}/variables/{var_id}/test-sync",
+    response_model=VariableActualRead,
+    summary="Test-sync a variable",
+    description="Trigger a one-off sync of a variable from its configured source. Requires hr_admin.",
+)
+async def test_sync_variable(
+    kpi_id: UUID,
+    var_id: UUID,
+    period_date: Annotated[str, Query(description="Period in YYYY-MM-DD format")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_roles("hr_admin"))],
+) -> VariableActualRead:
+    from datetime import date
+    from sqlalchemy import select
+    from app.exceptions import NotFoundException
+    from app.integrations.models import KPIVariable as _KPIVar
+
+    result = await db.execute(
+        select(_KPIVar).where(
+            _KPIVar.id == var_id,
+            _KPIVar.kpi_id == kpi_id,
+            _KPIVar.organisation_id == _org_id(current_user),
+        )
+    )
+    variable = result.scalar_one_or_none()
+    if variable is None:
+        raise NotFoundException("KPI variable not found")
+
+    parsed_date = date.fromisoformat(period_date)
+    actual = await _sync_service.sync_variable(db, variable, parsed_date)
+    return VariableActualRead.model_validate(actual)
+
+
+@router.post(
+    "/{kpi_id}/variables/validate-formula",
+    response_model=IntegFormulaValidationResponse,
+    summary="Validate formula expression against defined variables",
+)
+async def validate_formula_expression(
+    kpi_id: UUID,
+    payload: IntegFormulaValidationRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> IntegFormulaValidationResponse:
+    result = await _sync_service.validate_formula_with_variables(
+        db, kpi_id, payload.expression
+    )
+    return IntegFormulaValidationResponse(**result)
+

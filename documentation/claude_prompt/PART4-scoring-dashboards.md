@@ -366,6 +366,26 @@ class CalibrationService:
 
 ---
 
+### Per-KPI Scoring Configuration (Enhancement 1)
+
+The scoring engine now supports 3-level precedence for thresholds:
+1. **Target-level override** — highest precedence, set per employee assignment
+2. **KPI-level default** — applies whenever the KPI is used
+3. **Cycle-level default** — org-wide fallback (existing ScoreConfig)
+
+See `app/scoring/kpi_scoring_model.py` and `app/scoring/calculator.py`.
+
+Built-in presets:
+| Preset   | Exceptional | Exceeds | Meets | Partial |
+|----------|------------|---------|-------|----------|
+| Standard | ≥120%      | ≥100%   | ≥80%  | ≥60%     |
+| Strict   | ≥130%      | ≥110%   | ≥95%  | ≥80%     |
+| Lenient  | ≥110%      | ≥90%    | ≥70%  | ≥50%     |
+| Binary   | ≥100%      | ≥100%   | ≥90%  | ≥0%      |
+| Sales    | ≥120%      | ≥100%   | ≥85%  | ≥70%     |
+
+---
+
 ### Router — `app/scoring/router.py`
 
 ```
