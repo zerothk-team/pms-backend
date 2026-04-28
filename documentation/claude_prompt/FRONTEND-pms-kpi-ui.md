@@ -1,3 +1,7 @@
+> ⛔ DEPRECATED — This file is superseded by `MASTER_USER_GUIDE.md` at the repo root.
+> Do not update this file. It is kept for historical reference only.
+> Last active version: see git history.
+
 # Frontend Prompt — PMS KPI Module (React + TypeScript)
 > **For**: Lovable AI / GitHub Copilot (Claude Sonnet 4.6)
 > **Stack**: React 18 · TypeScript · Vite · Tailwind CSS · shadcn/ui · Redux Toolkit · RTK Query · Recharts · Framer Motion · dnd-kit · Lucide React

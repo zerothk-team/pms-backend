@@ -1,3 +1,7 @@
+> ⛔ DEPRECATED — This file is superseded by `MASTER_USER_GUIDE.md` at the repo root.
+> Do not update this file. It is kept for historical reference only.
+> Last active version: see git history.
+
 # Copilot Prompt — Part 2: KPI Definition, Library & Formula Engine
 > **Model**: Claude Sonnet 4.6 | **Depends on**: Part 1 complete
 

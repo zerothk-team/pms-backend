@@ -1,3 +1,7 @@
+> ⛔ DEPRECATED — This file is superseded by `MASTER_USER_GUIDE.md` at the repo root.
+> Do not update this file. It is kept for historical reference only.
+> Last active version: see git history.
+
 # Copilot Prompt — Enhancement 2: Formula Variables, Data Binding & External Integration
 > **Model**: Claude Sonnet 4.6 | **Workspace**: @workspace (both frontend + backend open)
 > **Depends on**: Backend Parts 1–5, Enhancement 1 completed
